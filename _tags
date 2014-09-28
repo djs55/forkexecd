@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: ab0e82776e735bf77fd51e77bdaf0490)
+# DO NOT EDIT (digest: 94393bf2fb7f906151fbd135b7f66c37)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -43,6 +43,8 @@
 # Executable monitor
 <monitor/monitor.{native,byte}>: pkg_cohttp
 <monitor/monitor.{native,byte}>: pkg_cohttp.lwt
+<monitor/monitor.{native,byte}>: pkg_cow
+<monitor/monitor.{native,byte}>: pkg_cow.syntax
 <monitor/monitor.{native,byte}>: pkg_fd-send-recv
 <monitor/monitor.{native,byte}>: pkg_rpclib
 <monitor/monitor.{native,byte}>: pkg_rpclib.syntax
@@ -53,6 +55,8 @@
 <monitor/monitor.{native,byte}>: use_forkexec
 <monitor/*.ml{,i}>: pkg_cohttp
 <monitor/*.ml{,i}>: pkg_cohttp.lwt
+<monitor/*.ml{,i}>: pkg_cow
+<monitor/*.ml{,i}>: pkg_cow.syntax
 <monitor/*.ml{,i}>: pkg_fd-send-recv
 <monitor/*.ml{,i}>: pkg_rpclib
 <monitor/*.ml{,i}>: pkg_rpclib.syntax

@@ -32,7 +32,7 @@ Executable monitor
   MainIs:             monitor.ml
   Custom:             true
   Install:            false
-  BuildDepends:       cohttp, cohttp.lwt, forkexec, uuidm
+  BuildDepends:       cohttp, cohttp.lwt, forkexec, uuidm, cow, cow.syntax
 
 Executable fe_test
   CompiledObject:     best

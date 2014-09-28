@@ -38,6 +38,12 @@ type t = {
 }
 (** A service which has a name and can be started/stopped/restarted *)
 
+(* Rather than doing something sophisticated with events we broadcast via
+   this condition variable and cause the UI to update *)
+let cvar = Lwt_condition.create ()
+
+let trigger_update () = Lwt_condition.broadcast cvar
+
 let info (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s -> Printf.fprintf stderr "[info] %s\n%!" s) fmt)
 let error (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s -> Printf.fprintf stderr "[error] %s\n%!" s) fmt)
 let action (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s -> Printf.fprintf stderr "[action] %s\n%!" s) fmt)
@@ -58,6 +64,7 @@ let restart ?(max=2) ?(interval=300.) t =
     | Return () ->
       info "%s: supervisor has recovered";
       rag := Green;
+      trigger_update ();
       loop stop [] p
     | _ ->
       let now = Unix.gettimeofday () in
@@ -65,10 +72,12 @@ let restart ?(max=2) ?(interval=300.) t =
       if List.length exits > max then begin
         error "%s: failed more than %d times in %.0f seconds" t.name max interval;
         rag := Red;
+        trigger_update ();
         return ();
       end else begin
         error "%s: failed but will restart" t.name;
         rag := Amber;
+        trigger_update ();
         loop stop exits (t.start ())
       end in
   { name = t.name ^ " supervisor";
@@ -78,6 +87,7 @@ let restart ?(max=2) ?(interval=300.) t =
     start = fun () ->
       info "%s: supervisor will restart up to %d times in %.0f seconds" t.name max interval;
       rag := Green;
+      trigger_update ();
       let th, u = Lwt.task () in
       Process.Thread (loop th [] (t.start()), fun () -> Lwt.wakeup_later u ())
   }
@@ -94,11 +104,13 @@ let init'd service_name description =
     action "service %s start" service_name;
     info "%s: service has recovered" service_name;
     rag := Green;
+    trigger_update ();
     (* Determine the pid of the service and watch it *)
     let watch_pid () =
       Lwt_unix.sleep 5. >>= fun () ->
       info "%s: service has failed" service_name;
       rag := Red;
+      trigger_update ();
       return () in
     let th, u = Lwt.task () in
     let action = Lwt.choose [ watch_pid (); th ] in
@@ -115,6 +127,7 @@ let group name description children =
   rag;
   start = fun () ->
     rag := Green;
+    trigger_update ();
     Process.Group (List.map (fun t -> t.start ()) children)
 }
 

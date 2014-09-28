@@ -15,8 +15,8 @@ Library forkexec
   CompiledObject:     best
   Path:               lib
   Findlibname:        forkexec
-  Modules:            Forkhelpers, Fecomms, Fe
-  BuildDepends:       stdext, threads, uuidm, rpclib, rpclib.syntax, fd-send-recv, xcp
+  Modules:            Forkhelpers, Fecomms, Fe, Restart
+  BuildDepends:       stdext, threads, uuidm, rpclib, rpclib.syntax, fd-send-recv, xcp, lwt, lwt.unix
 
 Executable forkexecd
   CompiledObject:     best

@@ -40,13 +40,47 @@ type t = {
 
 (* Rather than doing something sophisticated with events we broadcast via
    this condition variable and cause the UI to update *)
-let cvar = Lwt_condition.create ()
+let cvar : unit Lwt_condition.t = Lwt_condition.create ()
 
-let trigger_update () = Lwt_condition.broadcast cvar
+let trigger_update () = Lwt_condition.broadcast cvar ()
 
-let info (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s -> Printf.fprintf stderr "[info] %s\n%!" s) fmt)
-let error (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s -> Printf.fprintf stderr "[error] %s\n%!" s) fmt)
-let action (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s -> Printf.fprintf stderr "[action] %s\n%!" s) fmt)
+type level = Info | Error | Action
+
+let string_of_level = function
+| Info -> "info"
+| Error -> "error"
+| Action -> "action"
+
+type logmsg = {
+  timestamp: float;
+  level: level;
+  message: string;
+}
+
+module FloatMap = Map.Make(struct type t = float let compare = compare end)
+let log_messages = ref FloatMap.empty
+let max_log_messages = 16 (* keep this small *)
+let append level message =
+  let m =
+    if FloatMap.cardinal !log_messages = 16
+    then FloatMap.remove (fst (FloatMap.min_binding !log_messages)) !log_messages
+    else !log_messages in
+  log_messages := FloatMap.add (Unix.gettimeofday ()) (level, message) m
+
+let info (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s ->
+  Printf.fprintf stderr "[info] %s\n%!" s;
+  append Info s
+  ) fmt)
+let error (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s ->
+  Printf.fprintf stderr "[error] %s\n%!" s;
+  append Error s
+  ) fmt)
+let action (fmt : ('a, unit, string, unit) format4) = (Printf.kprintf (fun s ->
+  Printf.fprintf stderr "[action] %s\n%!" s;
+  append Action s
+  ) fmt)
+
+let _ = info "Monitor is running"
 
 let start t =
   action "Starting %s" t.name;
@@ -62,7 +96,7 @@ let restart ?(max=2) ?(interval=300.) t =
     >>= fun () ->
     match Lwt.state timer with
     | Return () ->
-      info "%s: supervisor has recovered";
+      info "%s: supervisor has recovered" t.name;
       rag := Green;
       trigger_update ();
       loop stop [] p
@@ -115,7 +149,7 @@ let init'd service_name description =
     let th, u = Lwt.task () in
     let action = Lwt.choose [ watch_pid (); th ] in
     Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in {
-  name = service_name ^ " (run from init.d)";
+  name = "init.d/" ^ service_name;
   description; children = []; rag; start;
   }
 

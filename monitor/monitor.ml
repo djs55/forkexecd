@@ -19,28 +19,65 @@ let generate_page () =
   pre >>= fun pre ->
   post >>= fun post ->
 
-  let row_of_service () =
+  let open Restart in
+  let rec row_of_service { name; description; children; rag } =
+    let icon = match !rag with
+    | Red -> <:html< <img src="img/red.png"/> >>
+    | Amber -> <:html< <img src="img/amber.png"/> >>
+    | Green -> <:html< <img src="img/green.png"/> >> in
+    let name = [ `Data name ] in
+    let description = [ `Data description ] in
+    let children = List.concat (List.map row_of_service children) in
     <:html<
-      <tr><td><img src="img/green.png"/></td><td>xenopsd</td><td>The Xen domain manager</td><td><a href="#">Restart</a></td></tr>
+      <tr><td>$icon$</td><td>$name$</td><td>$description$</td><td><a href="#">Restart</a></td></tr>
+      $children$
     >> in
 
   let table = <:html<
   <div class="row">
     <div class="large-12 columns">
-      <table>
+      <table width="100%">
         <thead><tr><th>State</th><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
         <tbody>
-          <tr><td><img src="img/red.png"/></td><td>xenopsd</td><td>The Xen domain manager</td><td><a href="#">Restart</a></td></tr>
-          <tr><td><img src="img/amber.png"/></td><td>xenopsd</td><td>The Xen domain manager</td><td><a href="#">Restart</a></td></tr>
-          <tr><td><img src="img/green.png"/></td><td>xenopsd</td><td>The Xen domain manager</td><td><a href="#">Restart</a></td></tr>
-          $row_of_service ()$
+          $row_of_service System.system$
         </tbody>
       </table>
     </div>
   </div>
    >> in
 
-  return (pre ^ (Cow.Html.to_string table) ^ post)
+  let row_of_logs () =
+    let rec loop acc m =
+      if FloatMap.is_empty m
+      then acc
+      else
+        let time, (level, message) = FloatMap.min_binding m in
+        let time_string =
+          let l = Unix.localtime time in
+          [ `Data (Printf.sprintf "%02d:%02d:%02d.%02d"
+            l.Unix.tm_hour l.Unix.tm_min l.Unix.tm_sec (int_of_float (100. *. (time -. (floor time))))) ] in
+        let level_string = [ `Data (string_of_level level) ] in
+        let message_string = [ `Data message ] in
+        let item = <:html<
+          <tr><td>$time_string$</td><td>$level_string$</td><td>$message_string$</td></tr>
+        >> in
+        loop (item :: acc) (FloatMap.remove time m) in
+    List.concat (loop [] !log_messages) in
+
+  let log = <:html<
+  <div class="row">
+    <div class="large-12 columns">
+      <table width="100%">
+        <thead><tr><th width="10%">Time</th><th width="10%">Level</th><th>Details</th></tr></thead>
+        <tbody>
+          $row_of_logs ()$
+        </tbody>
+      </table>
+    </div>
+  </div>
+  >> in
+
+  return (pre ^ (Cow.Html.to_string table) ^ (Cow.Html.to_string log) ^ post)
 
 let resource_prefixes = [
   "/css"; "/js"; "/img"

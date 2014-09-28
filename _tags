@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 94393bf2fb7f906151fbd135b7f66c37)
+# DO NOT EDIT (digest: 17f67f553beb7ce435ede9a00d54f7e7)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,6 +16,8 @@
 # Library forkexec
 "lib/forkexec.cmxs": use_forkexec
 <lib/*.ml{,i}>: pkg_fd-send-recv
+<lib/*.ml{,i}>: pkg_lwt
+<lib/*.ml{,i}>: pkg_lwt.unix
 <lib/*.ml{,i}>: pkg_rpclib
 <lib/*.ml{,i}>: pkg_rpclib.syntax
 <lib/*.ml{,i}>: pkg_stdext
@@ -24,6 +26,8 @@
 <lib/*.ml{,i}>: pkg_xcp
 # Executable forkexecd
 <src/fe_main.{native,byte}>: pkg_fd-send-recv
+<src/fe_main.{native,byte}>: pkg_lwt
+<src/fe_main.{native,byte}>: pkg_lwt.unix
 <src/fe_main.{native,byte}>: pkg_rpclib
 <src/fe_main.{native,byte}>: pkg_rpclib.syntax
 <src/fe_main.{native,byte}>: pkg_stdext
@@ -32,6 +36,8 @@
 <src/fe_main.{native,byte}>: pkg_xcp
 <src/fe_main.{native,byte}>: use_forkexec
 <src/*.ml{,i}>: pkg_fd-send-recv
+<src/*.ml{,i}>: pkg_lwt
+<src/*.ml{,i}>: pkg_lwt.unix
 <src/*.ml{,i}>: pkg_rpclib
 <src/*.ml{,i}>: pkg_rpclib.syntax
 <src/*.ml{,i}>: pkg_stdext
@@ -46,6 +52,8 @@
 <monitor/monitor.{native,byte}>: pkg_cow
 <monitor/monitor.{native,byte}>: pkg_cow.syntax
 <monitor/monitor.{native,byte}>: pkg_fd-send-recv
+<monitor/monitor.{native,byte}>: pkg_lwt
+<monitor/monitor.{native,byte}>: pkg_lwt.unix
 <monitor/monitor.{native,byte}>: pkg_rpclib
 <monitor/monitor.{native,byte}>: pkg_rpclib.syntax
 <monitor/monitor.{native,byte}>: pkg_stdext
@@ -58,6 +66,8 @@
 <monitor/*.ml{,i}>: pkg_cow
 <monitor/*.ml{,i}>: pkg_cow.syntax
 <monitor/*.ml{,i}>: pkg_fd-send-recv
+<monitor/*.ml{,i}>: pkg_lwt
+<monitor/*.ml{,i}>: pkg_lwt.unix
 <monitor/*.ml{,i}>: pkg_rpclib
 <monitor/*.ml{,i}>: pkg_rpclib.syntax
 <monitor/*.ml{,i}>: pkg_stdext
@@ -68,6 +78,8 @@
 <monitor/monitor.{native,byte}>: custom
 # Executable fe_test
 <test/fe_test.{native,byte}>: pkg_fd-send-recv
+<test/fe_test.{native,byte}>: pkg_lwt
+<test/fe_test.{native,byte}>: pkg_lwt.unix
 <test/fe_test.{native,byte}>: pkg_rpclib
 <test/fe_test.{native,byte}>: pkg_rpclib.syntax
 <test/fe_test.{native,byte}>: pkg_stdext
@@ -76,6 +88,8 @@
 <test/fe_test.{native,byte}>: pkg_xcp
 <test/fe_test.{native,byte}>: use_forkexec
 <test/*.ml{,i}>: pkg_fd-send-recv
+<test/*.ml{,i}>: pkg_lwt
+<test/*.ml{,i}>: pkg_lwt.unix
 <test/*.ml{,i}>: pkg_rpclib
 <test/*.ml{,i}>: pkg_rpclib.syntax
 <test/*.ml{,i}>: pkg_stdext
@@ -86,6 +100,8 @@
 <test/fe_test.{native,byte}>: custom
 # Executable fe_cli
 <cli/fe_cli.{native,byte}>: pkg_fd-send-recv
+<cli/fe_cli.{native,byte}>: pkg_lwt
+<cli/fe_cli.{native,byte}>: pkg_lwt.unix
 <cli/fe_cli.{native,byte}>: pkg_rpclib
 <cli/fe_cli.{native,byte}>: pkg_rpclib.syntax
 <cli/fe_cli.{native,byte}>: pkg_stdext
@@ -94,6 +110,8 @@
 <cli/fe_cli.{native,byte}>: pkg_xcp
 <cli/fe_cli.{native,byte}>: use_forkexec
 <cli/*.ml{,i}>: pkg_fd-send-recv
+<cli/*.ml{,i}>: pkg_lwt
+<cli/*.ml{,i}>: pkg_lwt.unix
 <cli/*.ml{,i}>: pkg_rpclib
 <cli/*.ml{,i}>: pkg_rpclib.syntax
 <cli/*.ml{,i}>: pkg_stdext

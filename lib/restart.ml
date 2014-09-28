@@ -38,6 +38,14 @@ type t = {
 }
 (** A service which has a name and can be started/stopped/restarted *)
 
+let rec find t name =
+  if t.name = name then Some t
+  else
+    List.fold_left (fun acc b -> match acc with
+      | Some x -> acc
+      | None -> find b name
+    ) None t.children
+
 (* Rather than doing something sophisticated with events we broadcast via
    this condition variable and cause the UI to update *)
 let cvar : unit Lwt_condition.t = Lwt_condition.create ()

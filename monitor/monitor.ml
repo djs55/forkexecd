@@ -15,6 +15,38 @@ let string_of_file path =
 let pre = string_of_file (root ^ "/html/pre")
 let post = string_of_file (root ^ "/html/post")
 
+(* verbs are encoded as uri prefixes *)
+let _start = "/start"
+let _stop = "/stop"
+
+let start name = match Restart.find System.system name with
+| Some t -> ignore(t.Restart.start ()); return ()
+| None ->
+  Restart.error "start: %s not found" name;
+  return ()
+
+let stop _ = return ()
+
+let actions = [
+  _start, start;
+  _stop, stop;
+]
+
+let startswith prefix x =
+  let prefix' = String.length prefix in
+  let x' = String.length x in
+  prefix' <= x' && (String.sub x 0 prefix' = prefix)
+
+let trigger_actions path =
+  Lwt_list.iter_s
+    (fun (verb, fn) ->
+      let prefix = verb ^ "/" in
+      let prefix' = String.length prefix in
+      if startswith prefix path
+      then fn (String.sub path prefix' (String.length path - prefix'))
+      else return ()
+    ) actions
+
 let generate_page () =
   pre >>= fun pre ->
   post >>= fun post ->
@@ -25,23 +57,30 @@ let generate_page () =
     | Red -> <:html< <img src="img/red.png"/> >>
     | Amber -> <:html< <img src="img/amber.png"/> >>
     | Green -> <:html< <img src="img/green.png"/> >> in
+    let action_uri name verb = [ `Data (Printf.sprintf "%s/%s" verb name) ] in
+    let actions = match !rag with
+    | Red -> <:html< <a href=$action_uri name _start$>Start</a> >>
+    | Amber
+    | Green -> <:html< <a href=$action_uri name _stop$>Stop</a> >> in
     let name = [ `Data name ] in
     let description = [ `Data description ] in
     let children = List.concat (List.map row_of_service children) in
     <:html<
-      <tr><td>$icon$</td><td>$name$</td><td>$description$</td><td><a href="#">Restart</a></td></tr>
+      <tr><td>$icon$</td><td>$name$</td><td>$description$</td><td>$actions$</td></tr>
       $children$
     >> in
 
   let table = <:html<
   <div class="row">
     <div class="large-12 columns">
+      <form>
       <table width="100%">
         <thead><tr><th>State</th><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
         <tbody>
           $row_of_service System.system$
         </tbody>
       </table>
+      </form>
     </div>
   </div>
    >> in
@@ -83,19 +122,19 @@ let resource_prefixes = [
   "/css"; "/js"; "/img"
 ]
 
-let startswith prefix x =
-  let prefix' = String.length prefix in
-  let x' = String.length x in
-  prefix' <= x' && (String.sub x 0 prefix' = prefix)
-
 let callback conn_id req body =
   let uri = Cohttp.Request.uri req in
   let path = Uri.path uri in
   if List.fold_left (||) false (List.map (fun prefix -> startswith prefix path) resource_prefixes)
   then Cohttp_lwt_unix.Server.respond_file ~fname:(root ^ path) ()
   else begin
-    generate_page () >>= fun body ->
-    Cohttp_lwt_unix.Server.respond_string ~status:`OK ~body ()
+    trigger_actions path >>= fun () ->
+    if path <> "/"
+    then Cohttp_lwt_unix.Server.respond_redirect ~uri:(Uri.with_path uri "/") ()
+    else begin
+      generate_page () >>= fun body ->
+      Cohttp_lwt_unix.Server.respond_string ~status:`OK ~body ()
+    end
   end
 
 let conn_closed conn_id () = ()

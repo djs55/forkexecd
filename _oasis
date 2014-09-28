@@ -16,7 +16,7 @@ Library forkexec
   Path:               lib
   Findlibname:        forkexec
   Modules:            Forkhelpers, Fecomms, Fe, Restart
-  BuildDepends:       stdext, threads, uuidm, rpclib, rpclib.syntax, fd-send-recv, xcp, lwt, lwt.unix
+  BuildDepends:       stdext, threads, uuidm, rpclib, rpclib.syntax, fd-send-recv, xcp, lwt, lwt.unix, rpclib.syntax, rpclib
 
 Executable forkexecd
   CompiledObject:     best

@@ -18,6 +18,7 @@ let post = string_of_file (root ^ "/html/post")
 (* verbs are encoded as uri prefixes *)
 let _start = "/start"
 let _stop = "/stop"
+let _event = "/event/"
 
 let start name = match Restart.find System.system name with
 | Some t -> ignore(t.Restart.start ()); return ()
@@ -122,20 +123,40 @@ let resource_prefixes = [
   "/css"; "/js"; "/img"
 ]
 
+let slash = Re_str.regexp_string "/"
+
+type event_result = {
+  events: (int * string) list;
+} with rpc
+
 let callback conn_id req body =
   let uri = Cohttp.Request.uri req in
   let path = Uri.path uri in
+
   if List.fold_left (||) false (List.map (fun prefix -> startswith prefix path) resource_prefixes)
   then Cohttp_lwt_unix.Server.respond_file ~fname:(root ^ path) ()
-  else begin
-    trigger_actions path >>= fun () ->
-    if path <> "/"
-    then Cohttp_lwt_unix.Server.respond_redirect ~uri:(Uri.with_path uri "/") ()
-    else begin
-      generate_page () >>= fun body ->
-      Cohttp_lwt_unix.Server.respond_string ~status:`OK ~body ()
+  else
+    if startswith _event path then begin
+      match Re_str.split_delim slash path with
+      | "" :: _ :: from :: timeout ->
+        Printf.fprintf stderr "path=[%s] from=[%s]\n%!" path from;
+        let from = int_of_string from in
+        Restart.wait_for_update from >>= fun next ->
+        let result = { events = [ next, "nothing" ]} in
+        let body = Jsonrpc.to_string (rpc_of_event_result result) in
+        Cohttp_lwt_unix.Server.respond_string ~status:`OK ~body ()
+      | _ ->
+        Printf.fprintf stderr "failed to parse %s\n%!" path;
+        fail Not_found
+    end else begin
+      trigger_actions path >>= fun () ->
+      if path <> "/"
+      then Cohttp_lwt_unix.Server.respond_redirect ~uri:(Uri.with_path uri "/") ()
+      else begin
+        generate_page () >>= fun body ->
+        Cohttp_lwt_unix.Server.respond_string ~status:`OK ~body ()
+      end
     end
-  end
 
 let conn_closed conn_id () = ()
 

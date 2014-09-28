@@ -4,5 +4,31 @@
     <script>
       $(document).foundation();
     </script>
+        <script>
+        console.log("test");
+      $(document).ready(function(){
+        var from = 0;
+        var should_reload = false;
+        console.log("hello");
+        (function poll(){
+          setTimeout(function(){
+           $.ajax({ url: "/event/" + from + "/5.0", success: function(data){
+             $.each(data.events, function(id,v) {
+               if (v[0] >= from) {
+                 from = v[0] + 1;
+                 console.log("from = " + from);
+                 if (should_reload) {
+                   location.reload(true);
+                 } else {
+                   should_reload = true;
+                 }
+               };
+             });
+             poll();
+           }, dataType: "json"});
+         }, 1000);
+        })();
+      });
+        </script>
   </body>
 </html>

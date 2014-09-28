@@ -48,9 +48,21 @@ let rec find t name =
 
 (* Rather than doing something sophisticated with events we broadcast via
    this condition variable and cause the UI to update *)
+let generation_id = ref 0
 let cvar : unit Lwt_condition.t = Lwt_condition.create ()
 
-let trigger_update () = Lwt_condition.broadcast cvar ()
+let trigger_update () =
+  incr generation_id;
+  Lwt_condition.broadcast cvar ()
+
+let wait_for_update x =
+  let rec loop () =
+    if !generation_id > x
+    then return !generation_id
+    else
+      Lwt_condition.wait cvar >>= fun () ->
+      loop () in
+  loop ()
 
 type level = Info | Error | Action
 

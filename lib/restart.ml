@@ -26,10 +26,15 @@ module Process = struct
       Lwt_list.iter_p stop ts
 end
 
+type rag = Red | Amber | Green
+
 type t = {
   name: string;
   description: string;
+  children: t list;
+  rag: rag ref;
   start: unit -> Process.t;
+
 }
 (** A service which has a name and can be started/stopped/restarted *)
 
@@ -42,22 +47,37 @@ let start t =
   Process.wait (t.start ())
 
 let restart ?(max=2) ?(interval=300.) t =
+  let rag = ref Red in
   let rec loop stop exits p =
-    Lwt.choose [ Process.wait p; stop ]
-    >>= fun () ->
     let now = Unix.gettimeofday () in
-    let exits = now :: (List.filter (fun x -> now -. x < interval) exits) in
-    if List.length exits > max then begin
-      error "%s: failed more than %d times in %.0f seconds" t.name max interval;
-      return ();
-    end else begin
-      error "%s: failed but will restart" t.name;
-      loop stop exits (t.start ())
-    end in
-  { name = t.name ^ " (protected)";
-    description = Printf.sprintf "%s (will automatically restart up to %d times in %.0f seconds)" t.description max interval;
+    (* If exits <> [] then we are amber until it is empty *)
+    let timer = Lwt_unix.sleep (interval -. now +. (List.fold_left min now exits)) in
+    Lwt.choose [ Process.wait p; stop; timer ]
+    >>= fun () ->
+    match Lwt.state timer with
+    | Return () ->
+      info "%s: supervisor has recovered";
+      rag := Green;
+      loop stop [] p
+    | _ ->
+      let now = Unix.gettimeofday () in
+      let exits = now :: (List.filter (fun x -> now -. x < interval) exits) in
+      if List.length exits > max then begin
+        error "%s: failed more than %d times in %.0f seconds" t.name max interval;
+        rag := Red;
+        return ();
+      end else begin
+        error "%s: failed but will restart" t.name;
+        rag := Amber;
+        loop stop exits (t.start ())
+      end in
+  { name = t.name ^ " supervisor";
+    description = Printf.sprintf "I will automatically restart %s up to %d times in %.0f seconds" t.description max interval;
+    children = [ t ];
+    rag;
     start = fun () ->
-      info "%s: will restart up to %d times in %.0f seconds" t.name max interval;
+      info "%s: supervisor will restart up to %d times in %.0f seconds" t.name max interval;
+      rag := Green;
       let th, u = Lwt.task () in
       Process.Thread (loop th [] (t.start()), fun () -> Lwt.wakeup_later u ())
   }
@@ -68,16 +88,34 @@ let run cmd args =
   let action = Lwt.choose [ Lwt_unix.sleep 5.; th ] in
   Process.Thread (action, fun () -> Lwt.wakeup_later u ())
 
-let init'd service_name description = {
+let init'd service_name description =
+  let rag = ref Red in
+  let start () =
+    action "service %s start" service_name;
+    info "%s: service has recovered" service_name;
+    rag := Green;
+    (* Determine the pid of the service and watch it *)
+    let watch_pid () =
+      Lwt_unix.sleep 5. >>= fun () ->
+      info "%s: service has failed" service_name;
+      rag := Red;
+      return () in
+    let th, u = Lwt.task () in
+    let action = Lwt.choose [ watch_pid (); th ] in
+    Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in {
   name = service_name ^ " (run from init.d)";
-  description;
-  start = fun () -> run "service" [ service_name; "start" ];
-}
+  description; children = []; rag; start;
+  }
 
-let group name description ts = {
+let group name description children =
+  let rag = ref Red in {
   name;
   description;
-  start = fun () -> Process.Group (List.map (fun t -> t.start ()) ts)
+  children;
+  rag;
+  start = fun () ->
+    rag := Green;
+    Process.Group (List.map (fun t -> t.start ()) children)
 }
 
 (* This is our specific policy: *)

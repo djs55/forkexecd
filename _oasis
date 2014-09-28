@@ -26,6 +26,14 @@ Executable forkexecd
   Install:            false
   BuildDepends:       stdext, forkexec, uuidm
 
+Executable monitor
+  CompiledObject:     best
+  Path:               monitor
+  MainIs:             monitor.ml
+  Custom:             true
+  Install:            false
+  BuildDepends:       cohttp, cohttp.lwt, forkexec, uuidm
+
 Executable fe_test
   CompiledObject:     best
   Path:               test

@@ -152,7 +152,7 @@ let run cmd args =
   let action = Lwt.choose [ Lwt_unix.sleep 5.; th ] in
   Process.Thread (action, fun () -> Lwt.wakeup_later u ())
 
-let init'd service_name description =
+let init'd service_name pid_file description =
   let rag = ref Red in
   let start () =
     let manage_process () =
@@ -199,9 +199,9 @@ let group name description children =
 
 (* This is our specific policy: *)
 
-let xenopsd = init'd "xenopsd" "The Xen domain manager"
-let squeezed = init'd "squeezed" "The memory ballooning daemon"
-let xapi = init'd "xapi" "The XenAPI interface"
+let xenopsd = init'd "xenopsd" "/var/run/xenopsd-xc.pid" "The Xen domain manager"
+let squeezed = init'd "squeezed" "/var/run/squeezed.pid" "The memory ballooning daemon"
+let xapi = init'd "xapi" "/var/run/xapi.pid" "The XenAPI interface"
 
 let toolstack = group "toolstack" "The xapi toolstack" [
   restart xenopsd;

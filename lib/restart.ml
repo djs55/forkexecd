@@ -174,16 +174,26 @@ let init'd service_name description =
   }
 
 let group name description children =
-  let rag = ref Red in {
-  name;
-  description;
-  children;
-  rag;
-  start = fun () ->
+  let rag = ref Red in
+  let start () =
+    action "group %s start" name;
     rag := Green;
     trigger_update ();
-    Process.Group (List.map (fun t -> t.start ()) children)
-}
+    let prs = List.map (fun t -> t.start()) children in
+    (* When one of our children exits, go amber,
+       When they all exit, go red *)
+    let watch_children () =
+      let ts = List.map Process.wait prs in
+      Lwt.choose ts >>= fun () ->
+      rag := Amber;
+      trigger_update ();
+      Lwt.join ts >>= fun () ->
+      rag := Red;
+      trigger_update ();
+      return () in
+    let _ = watch_children () in
+    Process.Group prs in
+   { name; description; children; rag; start }
 
 (* This is our specific policy: *)
 

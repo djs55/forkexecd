@@ -1,7 +1,7 @@
 open Cohttp_lwt
 open Lwt
 
-let port = 8080
+let port = ref 8080
 let root = "./monitor"
 
 let string_of_file path =
@@ -176,4 +176,9 @@ let start_server port () =
   let config = { Cohttp_lwt_unix.Server.callback; conn_closed } in
   Cohttp_lwt_unix.Server.create ~address:"0.0.0.0" ~port config
 
-let _ = Lwt_main.run (start_server port ())
+let _ =
+  Arg.parse [ "-p", Arg.Set_int port, "port to serve HTTP on" ]
+    (fun x -> Printf.fprintf stderr "Unknown argument %s: try --help\n" x; exit 1)
+    "Monitor dom0 health";
+
+ Lwt_main.run (start_server !port ())

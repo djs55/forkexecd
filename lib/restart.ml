@@ -158,7 +158,7 @@ let init'd_real service_name description =
   let rec watch_process () =
     is_alive () >>= fun alive ->
     let rag' = if alive then Green else Red in
-    if !rag <> Amber && !rag <> rag' then begin
+    if !rag <> rag' then begin
       rag := rag';
       trigger_update ()
     end;
@@ -205,9 +205,9 @@ let init'd_simulated service_name description =
   description; children = []; rag; start;
   }
 
-let simulate = ref true
+let simulate = ref false
 
-let init'd = if !simulate then init'd_simulated else init'd_real
+let init'd a b = (if !simulate then init'd_simulated else init'd_real) a b
 
 let group name description children =
   let rag = ref Red in
@@ -230,17 +230,3 @@ let group name description children =
     let _ = watch_children () in
     Process.Group prs in
    { name; description; children; rag; start }
-
-(* This is our specific policy: *)
-
-let xenopsd = init'd "xenopsd-xc" "The Xen domain manager"
-let squeezed = init'd "squeezed" "The memory ballooning daemon"
-let xapi = init'd "xapi" "The XenAPI interface"
-
-let toolstack = group "toolstack" "The xapi toolstack" [
-  restart xenopsd;
-  restart squeezed;
-  restart xapi;
-]
-
-let system = restart toolstack

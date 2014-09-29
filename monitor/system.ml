@@ -4,12 +4,14 @@ open Restart
 
 let xenopsd = init'd "xenopsd-xc" "The Xen domain manager"
 let squeezed = init'd "squeezed" "The memory ballooning daemon"
-let xapi = init'd "xapi" "The XenAPI interface"
+let networkd = init'd "xcp-networkd" "The host network configuration daemon"
 
 let toolstack = group "toolstack" "The xapi toolstack" [
+(*
   restart xenopsd;
+*)
   restart squeezed;
-  restart xapi;
+  restart networkd;
 ]
 
 let system = restart toolstack

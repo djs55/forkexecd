@@ -135,7 +135,7 @@ type event_result = {
 
 let callback conn_id req body =
   let uri = Cohttp.Request.uri req in
-  let path = Uri.path uri in
+  let path = Uri.(pct_decode (path uri)) in
 
   if List.fold_left (||) false (List.map (fun prefix -> startswith prefix path) resource_prefixes)
   then Cohttp_lwt_unix.Server.respond_file ~fname:(root ^ path) ()

@@ -155,19 +155,21 @@ let run cmd args =
 let init'd service_name description =
   let rag = ref Red in
   let start () =
-    action "service %s start" service_name;
-    info "%s: service has recovered" service_name;
-    rag := Green;
-    trigger_update ();
-    (* Determine the pid of the service and watch it *)
-    let watch_pid () =
-      Lwt_unix.sleep 5. >>= fun () ->
+    let manage_process () =
+      action "service %s start" service_name;
+      rag := Amber;
+      trigger_update ();
+      Lwt_unix.sleep (Random.float 3. +. 1.) >>= fun () ->
+      info "%s: service has recovered" service_name;
+      rag := Green;
+      trigger_update ();
+      Lwt_unix.sleep (Random.float 3. +. 5.) >>= fun () ->
       info "%s: service has failed" service_name;
       rag := Red;
       trigger_update ();
       return () in
     let th, u = Lwt.task () in
-    let action = Lwt.choose [ watch_pid (); th ] in
+    let action = Lwt.choose [ manage_process (); th ] in
     Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in {
   name = "init.d/" ^ service_name;
   description; children = []; rag; start;

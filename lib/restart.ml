@@ -34,7 +34,7 @@ type t = {
   children: t list;
   rag: rag ref;
   start: unit -> Process.t;
-
+  stop: unit -> unit Lwt.t
 }
 (** A service which has a name and can be started/stopped/restarted *)
 
@@ -134,23 +134,29 @@ let restart ?(max=2) ?(interval=300.) t =
         trigger_update ();
         loop stop exits (t.start ())
       end in
+  let start () =
+    info "%s: supervisor will restart up to %d times in %.0f seconds" t.name max interval;
+    rag := Green;
+    trigger_update ();
+    let th, u = Lwt.task () in
+    Process.Thread (loop th [] (t.start()), fun () -> Lwt.wakeup_later u ()) in
+  let stop () =
+    (* FIXME *)
+    t.stop () >>= fun () ->
+    return () in
+
   { name = t.name ^ " supervisor";
     description = Printf.sprintf "I will automatically restart %s up to %d times in %.0f seconds" t.description max interval;
     children = [ t ];
     rag;
-    start = fun () ->
-      info "%s: supervisor will restart up to %d times in %.0f seconds" t.name max interval;
-      rag := Green;
-      trigger_update ();
-      let th, u = Lwt.task () in
-      Process.Thread (loop th [] (t.start()), fun () -> Lwt.wakeup_later u ())
+    start; stop;
   }
 
 let init'd_real service_name description =
   let rag = ref Red in
 
   let is_alive () =
-    Lwt_unix.system (Printf.sprintf "service %s status" service_name)
+    Lwt_unix.system (Printf.sprintf "service %s status 2>&1 >/dev/null" service_name)
     >>= function
     | Lwt_unix.WEXITED 0 -> return true
     | _ -> return false in
@@ -177,9 +183,12 @@ let init'd_real service_name description =
       watch_process () in
     let th, u = Lwt.task () in
     let action = Lwt.choose [ manage_process (); th ] in
-    Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in {
+    Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in
+  let stop () =
+    Lwt_unix.system (Printf.sprintf "service %s stop" service_name) >>= fun _ ->
+    return () in {
   name = "init.d/" ^ service_name;
-  description; children = []; rag; start;
+  description; children = []; rag; start; stop;
   }
 
 let init'd_simulated service_name description =
@@ -200,9 +209,12 @@ let init'd_simulated service_name description =
       return () in
     let th, u = Lwt.task () in
     let action = Lwt.choose [ manage_process (); th ] in
-    Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in {
+    Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in
+  let stop () =
+    return () in
+ {
   name = "init.d/" ^ service_name;
-  description; children = []; rag; start;
+  description; children = []; rag; start; stop;
   }
 
 let simulate = ref false
@@ -221,12 +233,16 @@ let group name description children =
     let watch_children () =
       let ts = List.map Process.wait prs in
       Lwt.choose ts >>= fun () ->
-      rag := Amber;
-      trigger_update ();
-      Lwt.join ts >>= fun () ->
       rag := Red;
       trigger_update ();
+      Lwt_list.iter_p (fun t -> t.stop ()) children >>= fun () ->
+      Lwt.join ts >>= fun () ->
+(*
+      rag := Red;
+      trigger_update (); *)
       return () in
     let _ = watch_children () in
     Process.Group prs in
-   { name; description; children; rag; start }
+  let stop () =
+    Lwt_list.iter_p (fun t -> t.stop ()) children in
+   { name; description; children; rag; start; stop }

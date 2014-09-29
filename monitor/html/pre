@@ -13,5 +13,15 @@
     <div class="row">
       <div class="large-12 columns">
         <h1>Health of XenServer domain 0</h1>
+        <p>The &quot;Health and liveness monitoring infrastructure&quot; was originally
+           described by <a href="https://info.citrite.net/display/engp/EA-1160">EA-1160<a>
+           on the wiki and <a href="https://issues.citrite.net/browse/CAR-387">CAR-387</a>
+           on Jira.</p>
+        <p>This shows the state of:</p>
+        <ul>
+          <li>Components in domain 0: are they running? Have they failed and are now being restarted?</li>
+          <li>Live probing with a tiny test VM: is the system responding normally or has it deadlocked?</li>
+          <li>Monitoring resource usage: is the dom0 partition filling up? Have we tried to reclaim space?</li>
+        </ul>
       </div>
     </div>

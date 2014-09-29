@@ -165,6 +165,12 @@ let callback conn_id req body =
 let conn_closed conn_id () = ()
 
 let start_server port () =
+  ( Lwt_unix.system "lsb_release -si" >>= function
+  | Lwt_unix.WEXITED 0 ->
+    Printf.fprintf stderr "Running on Linux, exiting simulation mode\n%!";
+    Restart.simulate := false;
+    return ()
+  | _ -> return () ) >>= fun () ->
   Printf.fprintf stderr "Listening for HTTP on port %d\n%!" port;
 
   let config = { Cohttp_lwt_unix.Server.callback; conn_closed } in

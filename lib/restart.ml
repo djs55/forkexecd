@@ -146,13 +146,43 @@ let restart ?(max=2) ?(interval=300.) t =
       Process.Thread (loop th [] (t.start()), fun () -> Lwt.wakeup_later u ())
   }
 
-let run cmd args =
-  action "%s %s" cmd (String.concat " " args);
-  let th, u = Lwt.task () in
-  let action = Lwt.choose [ Lwt_unix.sleep 5.; th ] in
-  Process.Thread (action, fun () -> Lwt.wakeup_later u ())
+let init'd_real service_name description =
+  let rag = ref Red in
 
-let init'd service_name pid_file description =
+  let is_alive () =
+    Lwt_unix.system (Printf.sprintf "service %s status" service_name)
+    >>= function
+    | Lwt_unix.WEXITED 0 -> return true
+    | _ -> return false in
+
+  let rec watch_process () =
+    is_alive () >>= fun alive ->
+    let rag' = if alive then Green else Red in
+    if !rag <> Amber && !rag <> rag' then begin
+      rag := rag';
+      trigger_update ()
+    end;
+    if alive then begin
+      Lwt_unix.sleep 1. >>= fun () ->
+      watch_process ()
+    end else return () in
+  let _ = watch_process () in
+
+  let start () =
+    let manage_process () =
+      rag := Amber;
+      trigger_update ();
+      action "service %s start" service_name;
+      Lwt_unix.system (Printf.sprintf "service %s start" service_name) >>= fun _ ->
+      watch_process () in
+    let th, u = Lwt.task () in
+    let action = Lwt.choose [ manage_process (); th ] in
+    Process.Thread (action, fun () -> Lwt.wakeup_later u ()) in {
+  name = "init.d/" ^ service_name;
+  description; children = []; rag; start;
+  }
+
+let init'd_simulated service_name description =
   let rag = ref Red in
   let start () =
     let manage_process () =
@@ -174,6 +204,10 @@ let init'd service_name pid_file description =
   name = "init.d/" ^ service_name;
   description; children = []; rag; start;
   }
+
+let simulate = ref true
+
+let init'd = if !simulate then init'd_simulated else init'd_real
 
 let group name description children =
   let rag = ref Red in
@@ -199,9 +233,9 @@ let group name description children =
 
 (* This is our specific policy: *)
 
-let xenopsd = init'd "xenopsd" "/var/run/xenopsd-xc.pid" "The Xen domain manager"
-let squeezed = init'd "squeezed" "/var/run/squeezed.pid" "The memory ballooning daemon"
-let xapi = init'd "xapi" "/var/run/xapi.pid" "The XenAPI interface"
+let xenopsd = init'd "xenopsd-xc" "The Xen domain manager"
+let squeezed = init'd "squeezed" "The memory ballooning daemon"
+let xapi = init'd "xapi" "The XenAPI interface"
 
 let toolstack = group "toolstack" "The xapi toolstack" [
   restart xenopsd;

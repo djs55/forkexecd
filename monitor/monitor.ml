@@ -117,7 +117,11 @@ let generate_page () =
   </div>
   >> in
 
-  return (pre ^ (Cow.Html.to_string table) ^ (Cow.Html.to_string log) ^ post)
+  let id =
+    let id = [ `Data (string_of_int !Restart.generation_id) ] in
+    <:html< <script>var from=$id$;</script> >> in
+
+  return (pre ^ (Cow.Html.to_string table) ^ (Cow.Html.to_string log) ^ (Cow.Html.to_string id) ^ post)
 
 let resource_prefixes = [
   "/css"; "/js"; "/img"

@@ -20,10 +20,12 @@ let _start = "/start"
 let _stop = "/stop"
 let _event = "/event/"
 
-let start name = match Restart.find System.system name with
-| Some t -> ignore(t.Restart.start ()); return ()
-| None ->
-  Restart.error "start: %s not found" name;
+let start name =
+  List.iter (fun s ->
+    match Restart.find s name with
+    | Some t -> ignore(t.Restart.start ())
+    | None -> ()
+  ) System.system;
   return ()
 
 let stop _ = return ()
@@ -70,6 +72,7 @@ let generate_page () =
       <tr><td>$icon$</td><td>$name$</td><td>$description$</td><td>$actions$</td></tr>
       $children$
     >> in
+  let row_of_services s = List.concat (List.map row_of_service s) in
 
   let table = <:html<
   <div class="row">
@@ -78,7 +81,7 @@ let generate_page () =
       <table width="100%">
         <thead><tr><th>State</th><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
         <tbody>
-          $row_of_service System.system$
+          $row_of_services System.system$
         </tbody>
       </table>
       </form>

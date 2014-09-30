@@ -197,6 +197,27 @@ let init'd_real service_name description =
   description; children = []; rag; start; stop; failure
   }
 
+let always_ok name description =
+  let rag = ref Green in
+  let c = Lwt_condition.create () in
+  let start () =
+    action "starting %s" name;
+    rag := Green;
+    trigger_update ();
+    return () in
+  let stop () =
+    action "stopping %s" name;
+    rag := Red;
+    Lwt_condition.broadcast c ();
+    trigger_update ();
+    return () in
+  let rec failure () =
+    if !rag = Red then return ()
+    else
+      Lwt_condition.wait c >>= fun () ->
+      failure () in
+  { name; description; children = []; rag; start; stop; failure }
+
 let init'd_simulated service_name description =
   let rag = ref Red in
   let c = Lwt_condition.create () in
